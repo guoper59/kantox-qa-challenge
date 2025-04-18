@@ -1,0 +1,19 @@
+# rules.yml
+rules:
+  - type: FreeRule
+    product_code: GR1
+    buy: 1
+    free: 1
+    description: "Buy one get one free"
+    
+  - type: ReducedPriceRule
+    product_code: SR1
+    min_quantity: 3
+    new_price: 4.50
+    description: "Buy 3 or more, pay £4.50 each"
+    
+  - type: FractionPriceRule
+    product_code: CF1
+    min_quantity: 3
+    fraction: 0.6667
+    description: "Buy 3 or more, pay 2/3 of the price"

@@ -1,0 +1,25 @@
+# Explanation of YAML File Design Choices
+# 
+# 1. Products YAML Structure:
+#    - We've used an array of product objects under a "products" key to allow for easy iteration
+#    - Each product includes code, name, and price as required by the challenge
+#    - The structure is simple and easily extensible if additional product attributes are needed
+#
+# 2. Rules YAML Structure:
+#    - Each rule includes a "type" field to identify the discount rule type (FreeRule, ReducedPriceRule, FractionPriceRule)
+#    - Each rule includes a "product_code" to link it to the applicable product
+#    - Rule-specific parameters are included based on the rule type
+#    - Added descriptive text for each rule to improve readability
+#    - This structure allows for easy addition of new rule types in the future
+
+# products.yml
+products:
+  - code: GR1
+    name: Green Tea
+    price: 3.11
+  - code: SR1
+    name: Strawberries
+    price: 5.00
+  - code: CF1
+    name: Coffee
+    price: 11.23

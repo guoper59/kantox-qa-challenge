@@ -1,0 +1,605 @@
+{
+	"info": {
+		"_postman_id": "b4536236-c20b-4d9d-8572-238dc2a9a3e2",
+		"name": "Kantox QA Challenge API Tests with Contract Testing",
+		"description": "API tests for Kantox QA Challenge incorporating contract testing principles.\n\n## Contract Testing Approach\n\nThis collection implements consumer-driven contract testing principles, treating the Postman tests as \"consumers\" that define expectations about how the API (\"provider\") should behave. Key aspects:\n\n1. **Schema Validation**: Each endpoint test includes schema validation to ensure the response matches the expected structure.\n2. **Consumer Requirements**: Tests reflect what a consumer needs from the API.\n3. **Provider States**: Tests establish and verify provider states.\n4. **Minimal Examples**: Tests use minimal examples to validate contracts, not extensive functionality.\n5. **Clear Expectations**: Tests explicitly define what consumers expect from each endpoint.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "21689954"
+	},
+	"item": [
+		{
+			"name": "Posts Contract Tests",
+			"item": [
+				{
+					"name": "Get All Posts - Contract Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for GET /posts endpoint",
+									"",
+									"// 1. Basic contract expectations",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Content-Type header exists and is application/json\", function () {",
+									"    pm.response.to.have.header(\"Content-Type\");",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// 2. Schema validation - the core of contract testing",
+									"const responseJson = pm.response.json();",
+									"",
+									"pm.test(\"Response is an array of post objects matching schema\", function () {",
+									"    pm.expect(Array.isArray(responseJson)).to.be.true;",
+									"    ",
+									"    // Define the post schema - this is the \"contract\"",
+									"    const postSchema = {",
+									"        \"type\": \"object\",",
+									"        \"required\": [\"id\", \"title\", \"author\"],",
+									"        \"properties\": {",
+									"            \"id\": { \"type\": \"number\" },",
+									"            \"title\": { \"type\": \"string\" },",
+									"            \"author\": { \"type\": \"string\" }",
+									"        }",
+									"    };",
+									"    ",
+									"    // Validate each post against the schema",
+									"    responseJson.forEach(function(post) {",
+									"        pm.expect(tv4.validate(post, postSchema)).to.be.true;",
+									"    });",
+									"});",
+									"",
+									"// 3. Store state for future tests - part of contract testing's state verification",
+									"if (responseJson.length > 0) {",
+									"    pm.environment.set(\"postId\", responseJson[0].id);",
+									"    console.log(\"Stored postId=\" + responseJson[0].id + \" for state verification in subsequent tests\");",
+									"}",
+									"",
+									"// 4. Document the contract",
+									"console.log(\"Contract Verified: GET /posts returns array of post objects each with id, title, and author\")"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/posts",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"posts"
+							]
+						},
+						"description": "Contract test for getting all posts. This verifies that the provider (API) fulfills the consumer's expectation of receiving a list of posts with specific attributes."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Post - Contract Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for GET /posts/{id} endpoint",
+									"",
+									"// 1. Basic contract expectations",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Content-Type header exists and is application/json\", function () {",
+									"    pm.response.to.have.header(\"Content-Type\");",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// 2. Schema validation - the core of contract testing",
+									"const responseJson = pm.response.json();",
+									"",
+									"pm.test(\"Response is a single post object matching schema\", function () {",
+									"    // Define the post schema - this is the \"contract\"",
+									"    const postSchema = {",
+									"        \"type\": \"object\",",
+									"        \"required\": [\"id\", \"title\", \"author\"],",
+									"        \"properties\": {",
+									"            \"id\": { \"type\": \"number\" },",
+									"            \"title\": { \"type\": \"string\" },",
+									"            \"author\": { \"type\": \"string\" }",
+									"        }",
+									"    };",
+									"    ",
+									"    // Validate post against the schema",
+									"    pm.expect(tv4.validate(responseJson, postSchema)).to.be.true;",
+									"});",
+									"",
+									"// 3. Verify state - part of contract testing's state verification",
+									"pm.test(\"Post has the requested ID (state verification)\", function () {",
+									"    pm.expect(responseJson.id).to.eql(Number(pm.environment.get(\"postId\")));",
+									"});",
+									"",
+									"// 4. Document the contract",
+									"console.log(\"Contract Verified: GET /posts/{id} returns a post object with id, title, and author\")"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/posts/{{postId}}",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"posts",
+								"{{postId}}"
+							]
+						},
+						"description": "Contract test for getting a single post. This verifies that the provider (API) fulfills the consumer's expectation of receiving a specific post with attributes matching the schema."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Post - Contract Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for POST /posts endpoint",
+									"",
+									"// 1. Basic contract expectations",
+									"pm.test(\"Status code is 201 Created\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Content-Type header exists and is application/json\", function () {",
+									"    pm.response.to.have.header(\"Content-Type\");",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// 2. Schema validation - the core of contract testing",
+									"const responseJson = pm.response.json();",
+									"const requestBody = JSON.parse(pm.request.body.raw);",
+									"",
+									"pm.test(\"Response is a post object matching schema with created data\", function () {",
+									"    // Define the post schema - this is the \"contract\"",
+									"    const postSchema = {",
+									"        \"type\": \"object\",",
+									"        \"required\": [\"id\", \"title\", \"author\"],",
+									"        \"properties\": {",
+									"            \"id\": { \"type\": \"number\" },",
+									"            \"title\": { \"type\": \"string\" },",
+									"            \"author\": { \"type\": \"string\" }",
+									"        }",
+									"    };",
+									"    ",
+									"    // Validate post against the schema",
+									"    pm.expect(tv4.validate(responseJson, postSchema)).to.be.true;",
+									"    ",
+									"    // Verify the returned data matches what we sent (except for the ID which is assigned by the server)",
+									"    pm.expect(responseJson.title).to.eql(requestBody.title);",
+									"    pm.expect(responseJson.author).to.eql(requestBody.author);",
+									"});",
+									"",
+									"// 3. State management - store new state for future tests",
+									"pm.environment.set(\"newPostId\", responseJson.id);",
+									"console.log(\"Stored newPostId=\" + responseJson.id + \" for state verification in subsequent tests\");",
+									"",
+									"// 4. Document the contract",
+									"console.log(\"Contract Verified: POST /posts creates and returns a post object with server-assigned id plus submitted title and author\")"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Contract Test Post\",\n    \"author\": \"Contract Tester\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3000/posts",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"posts"
+							]
+						},
+						"description": "Contract test for creating a post. This verifies that the provider (API) accepts the consumer's post creation request and responds with the created resource including server-assigned ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Post - Contract Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for PUT /posts/{id} endpoint",
+									"",
+									"// 1. Basic contract expectations",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Content-Type header exists and is application/json\", function () {",
+									"    pm.response.to.have.header(\"Content-Type\");",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// 2. Schema validation - the core of contract testing",
+									"const responseJson = pm.response.json();",
+									"const requestBody = JSON.parse(pm.request.body.raw);",
+									"",
+									"pm.test(\"Response is a post object matching schema with updated data\", function () {",
+									"    // Define the post schema - this is the \"contract\"",
+									"    const postSchema = {",
+									"        \"type\": \"object\",",
+									"        \"required\": [\"id\", \"title\", \"author\"],",
+									"        \"properties\": {",
+									"            \"id\": { \"type\": \"number\" },",
+									"            \"title\": { \"type\": \"string\" },",
+									"            \"author\": { \"type\": \"string\" }",
+									"        }",
+									"    };",
+									"    ",
+									"    // Validate post against the schema",
+									"    pm.expect(tv4.validate(responseJson, postSchema)).to.be.true;",
+									"    ",
+									"    // Verify the returned data matches what we sent",
+									"    pm.expect(responseJson.title).to.eql(requestBody.title);",
+									"    pm.expect(responseJson.author).to.eql(requestBody.author);",
+									"});",
+									"",
+									"// 3. Verify state - part of contract testing's state verification",
+									"pm.test(\"Post ID remains unchanged (state verification)\", function () {",
+									"    pm.expect(responseJson.id).to.eql(Number(pm.environment.get(\"newPostId\")));",
+									"});",
+									"",
+									"// 4. Document the contract",
+									"console.log(\"Contract Verified: PUT /posts/{id} updates and returns a post object with unchanged id plus updated title and author\")"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Updated Contract Test Post\",\n    \"author\": \"Updated Contract Tester\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3000/posts/{{newPostId}}",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"posts",
+								"{{newPostId}}"
+							]
+						},
+						"description": "Contract test for updating a post. This verifies that the provider (API) accepts the consumer's post update request and responds with the updated resource maintaining the same ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Post - Contract Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for DELETE /posts/{id} endpoint",
+									"",
+									"// 1. Basic contract expectations",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// 2. Schema validation - for DELETE, often empty object is returned",
+									"try {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Response is an empty object (JSON Server specific)\", function () {",
+									"        pm.expect(Object.keys(responseJson).length).to.eql(0);",
+									"    });",
+									"} catch (e) {",
+									"    // Some REST APIs might return empty body for DELETE",
+									"    pm.test(\"Response body may be empty\", function() {",
+									"        pm.response.to.be.withBody;",
+									"    });",
+									"}",
+									"",
+									"// 3. State verification - check that resource is actually deleted",
+									"// This is crucial for contract testing - verifying the provider state changed as expected",
+									"pm.test(\"Contract includes verification that resource is actually deleted\", function() {",
+									"    const getDeletedUrl = `http://localhost:3000/posts/${pm.environment.get(\"newPostId\")}`;",
+									"    ",
+									"    pm.sendRequest(getDeletedUrl, function (err, res) {",
+									"        pm.expect(res.code).to.eql(404);",
+									"    });",
+									"});",
+									"",
+									"// 4. Document the contract",
+									"console.log(\"Contract Verified: DELETE /posts/{id} removes the resource and returns empty response or empty object\")"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/posts/{{newPostId}}",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"posts",
+								"{{newPostId}}"
+							]
+						},
+						"description": "Contract test for deleting a post. This verifies that the provider (API) accepts the consumer's deletion request and confirms that the resource is no longer available."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Non-existent Post - Error Contract Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for error response from GET /posts/{non-existent-id} endpoint",
+									"// Error handling contracts are as important as success contracts",
+									"",
+									"// 1. Basic contract expectations for error response",
+									"pm.test(\"Status code is 404 Not Found\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"// 2. Error response schema validation (may vary by API)",
+									"try {",
+									"    const responseJson = pm.response.json();",
+									"    ",
+									"    pm.test(\"Error response format matches contract\", function() {",
+									"        // JSON Server typically returns empty object for 404",
+									"        pm.expect(Object.keys(responseJson).length).to.eql(0);",
+									"    });",
+									"} catch (e) {",
+									"    // Some APIs might return empty body for 404",
+									"    console.log(\"Empty response body for 404 is acceptable in this contract\");",
+									"}",
+									"",
+									"// 3. Document the error contract",
+									"console.log(\"Contract Verified: GET /posts/{non-existent-id} returns 404 Not Found\")"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/posts/9999",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"posts",
+								"9999"
+							]
+						},
+						"description": "Contract test for error handling when getting a non-existent post. This verifies that the provider (API) responds appropriately when a consumer requests a resource that doesn't exist."
+					},
+					"response": []
+				}
+			],
+			"description": "Contract tests for the posts endpoints. These tests verify that the API behaves according to the expected contract from a consumer perspective."
+		},
+		{
+			"name": "Comments Contract Tests",
+			"item": [
+				{
+					"name": "Get All Comments - Contract Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for GET /comments endpoint",
+									"",
+									"// 1. Basic contract expectations",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Content-Type header exists and is application/json\", function () {",
+									"    pm.response.to.have.header(\"Content-Type\");",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// 2. Schema validation - the core of contract testing",
+									"const responseJson = pm.response.json();",
+									"",
+									"pm.test(\"Response is an array of comment objects matching schema\", function () {",
+									"    pm.expect(Array.isArray(responseJson)).to.be.true;",
+									"    ",
+									"    // Define the comment schema - this is the \"contract\"",
+									"    const commentSchema = {",
+									"        \"type\": \"object\",",
+									"        \"required\": [\"id\", \"body\", \"postId\"],",
+									"        \"properties\": {",
+									"            \"id\": { \"type\": \"number\" },",
+									"            \"body\": { \"type\": \"string\" },",
+									"            \"postId\": { \"type\": \"number\" }",
+									"        }",
+									"    };",
+									"    ",
+									"    // Validate each comment against the schema",
+									"    responseJson.forEach(function(comment) {",
+									"        pm.expect(tv4.validate(comment, commentSchema)).to.be.true;",
+									"    });",
+									"});",
+									"",
+									"// 3. Store state for future tests - part of contract testing's state verification",
+									"if (responseJson.length > 0) {",
+									"    pm.environment.set(\"commentId\", responseJson[0].id);",
+									"    console.log(\"Stored commentId=\" + responseJson[0].id + \" for state verification in subsequent tests\");",
+									"    ",
+									"    // Also store a postId for creating new comments",
+									"    pm.environment.set(\"commentPostId\", responseJson[0].postId);",
+									"}",
+									"",
+									"// 4. Document the contract",
+									"console.log(\"Contract Verified: GET /comments returns array of comment objects each with id, body, and postId\")"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/comments",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"comments"
+							]
+						},
+						"description": "Contract test for getting all comments. This verifies that the provider (API) fulfills the consumer's expectation of receiving a list of comments with specific attributes."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Profile Contract Tests",
+			"item": [
+				{
+					"name": "Get Profile - Contract Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for GET /profile endpoint",
+									"",
+									"// 1. Basic contract expectations",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Content-Type header exists and is application/json\", function () {",
+									"    pm.response.to.have.header(\"Content-Type\");",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"});",
+									"",
+									"// 2. Schema validation - the core of contract testing",
+									"const responseJson = pm.response.json();",
+									"",
+									"pm.test(\"Response is a profile object matching schema\", function () {",
+									"    // Define the profile schema - this is the \"contract\"",
+									"    const profileSchema = {",
+									"        \"type\": \"object\",",
+									"        \"required\": [\"name\"],",
+									"        \"properties\": {",
+									"            \"name\": { \"type\": \"string\" }",
+									"        }",
+									"    };",
+									"    ",
+									"    // Validate profile against the schema",
+									"    pm.expect(tv4.validate(responseJson, profileSchema)).to.be.true;",
+									"});",
+									"",
+									"// 3. Document the contract",
+									"console.log(\"Contract Verified: GET /profile returns a profile object with name property\")"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/profile",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"profile"
+							]
+						},
+						"description": "Contract test for getting the profile. This verifies that the provider (API) fulfills the consumer's expectation of receiving a profile object with the expected attributes."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
