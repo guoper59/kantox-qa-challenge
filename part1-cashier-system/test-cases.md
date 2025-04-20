@@ -1,5 +1,3 @@
---- START OF FILE test-cases.md ---
-
 # Test Cases for Cashier System
 
 These test cases correspond to scenarios in the [cashier.feature](bdd-specifications/cashier.feature) file and use the sample [products.yml](config/products.yml) and [rules.yml](config/rules.yml) configuration.
