@@ -1,8 +1,8 @@
 {
 	"info": {
-		"_postman_id": "b4536236-c20b-4d9d-8572-238dc2a9a3e2",
+		"_postman_id": "df0af4df-cbc4-4025-9633-c890c51ff56f",
 		"name": "Kantox QA Challenge API Tests with Contract Testing",
-		"description": "API tests for Kantox QA Challenge incorporating contract testing principles.\n\n## Contract Testing Approach\n\nThis collection implements consumer-driven contract testing principles, treating the Postman tests as \"consumers\" that define expectations about how the API (\"provider\") should behave. Key aspects:\n\n1. **Schema Validation**: Each endpoint test includes schema validation to ensure the response matches the expected structure.\n2. **Consumer Requirements**: Tests reflect what a consumer needs from the API.\n3. **Provider States**: Tests establish and verify provider states.\n4. **Minimal Examples**: Tests use minimal examples to validate contracts, not extensive functionality.\n5. **Clear Expectations**: Tests explicitly define what consumers expect from each endpoint.",
+		"description": "API tests for Kantox QA Challenge incorporating contract testing principles.\n\n## Contract Testing Approach\n\nThis collection implements consumer-driven contract testing principles, treating the Postman tests as \"consumers\" that define expectations about how the API (\"provider\") should behave. Key aspects:\n\n1. **Schema Validation**: Each endpoint test includes schema validation to ensure the response matches the expected structure.\n2. **Consumer Requirements**: Tests reflect what a consumer needs from the API.\n3. **Provider States**: Tests establish and verify provider states (e.g., creating a resource, then fetching it, then deleting it and verifying deletion).\n4. **Minimal Examples**: Tests use minimal examples to validate contracts, not extensive functionality.\n5. **Clear Expectations**: Tests explicitly define what consumers expect from each endpoint, including success and error cases.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "21689954"
 	},
@@ -40,26 +40,36 @@
 									"        \"type\": \"object\",",
 									"        \"required\": [\"id\", \"title\", \"author\"],",
 									"        \"properties\": {",
-									"            \"id\": { \"type\": \"number\" },",
+									"            \"id\": { \"type\": [\"number\", \"string\"] }, // JSON server might use numbers or strings depending on creation",
 									"            \"title\": { \"type\": \"string\" },",
 									"            \"author\": { \"type\": \"string\" }",
-									"        }",
+									"        },",
+									"        \"additionalProperties\": false // Ensure no unexpected properties",
 									"    };",
 									"    ",
 									"    // Validate each post against the schema",
-									"    responseJson.forEach(function(post) {",
-									"        pm.expect(tv4.validate(post, postSchema)).to.be.true;",
-									"    });",
+									"    if (responseJson.length > 0) {",
+									"        responseJson.forEach(function(post) {",
+									"            let validationResult = tv4.validateResult(post, postSchema);",
+									"            pm.expect(validationResult.valid, `Post validation failed: ${validationResult.error ? validationResult.error.message : 'Unknown error'} at ${validationResult.error ? validationResult.error.dataPath : ''}`).to.be.true;",
+									"        });",
+									"    } else {",
+									"        console.log(\"Skipping individual post schema validation as the array is empty.\");",
+									"    }",
 									"});",
 									"",
 									"// 3. Store state for future tests - part of contract testing's state verification",
-									"if (responseJson.length > 0) {",
-									"    pm.environment.set(\"postId\", responseJson[0].id);",
-									"    console.log(\"Stored postId=\" + responseJson[0].id + \" for state verification in subsequent tests\");",
+									"if (responseJson.length > 0 && responseJson[0].id) {",
+									"    pm.environment.set(\"existingPostId\", responseJson[0].id);",
+									"    console.log(\"Stored existingPostId=\" + responseJson[0].id + \" for state verification in subsequent tests\");",
+									"} else {",
+									"    console.log(\"Could not store existingPostId, response array might be empty or first item lacks id.\");",
+									"     // Set a default value if needed for subsequent tests or handle appropriately",
+									"     // pm.environment.set(\"existingPostId\", \"DEFAULT_ID_IF_NEEDED\"); ",
 									"}",
 									"",
 									"// 4. Document the contract",
-									"console.log(\"Contract Verified: GET /posts returns array of post objects each with id, title, and author\")"
+									"console.log(\"Contract Verified: GET /posts returns array of post objects each with id(number/string), title(string), and author(string)\")"
 								],
 								"type": "text/javascript",
 								"packages": {}
@@ -80,12 +90,10 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:3000/posts",
-							"protocol": "http",
+							"raw": "{{baseUrl}}/posts",
 							"host": [
-								"localhost"
+								"{{baseUrl}}"
 							],
-							"port": "3000",
 							"path": [
 								"posts"
 							]
@@ -98,47 +106,71 @@
 					"name": "Get Single Post - Contract Test",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Ensure we have an ID to test with",
+									"if (!pm.environment.get(\"existingPostId\")) {",
+									"    console.error(\"Pre-request check failed: 'existingPostId' not set. Cannot run Get Single Post test.\");",
+									"    // Optionally, skip the request if the variable is missing",
+									"    // postman.setNextRequest(null); ",
+									"}",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
 									"// Contract test for GET /posts/{id} endpoint",
+									"const expectedPostId = pm.environment.get(\"existingPostId\");",
 									"",
-									"// 1. Basic contract expectations",
-									"pm.test(\"Status code is 200 OK\", function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
+									"// Skip test if prerequisite ID is missing",
+									"if (!expectedPostId) {",
+									"    pm.test.skip(\"Skipping test as 'existingPostId' is not set\");",
+									"} else {",
+									"    // 1. Basic contract expectations",
+									"    pm.test(\"Status code is 200 OK\", function () {",
+									"        pm.response.to.have.status(200);",
+									"    });",
 									"",
-									"pm.test(\"Content-Type header exists and is application/json\", function () {",
-									"    pm.response.to.have.header(\"Content-Type\");",
-									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
-									"});",
+									"    pm.test(\"Content-Type header exists and is application/json\", function () {",
+									"        pm.response.to.have.header(\"Content-Type\");",
+									"        pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"    });",
 									"",
-									"// 2. Schema validation - the core of contract testing",
-									"const responseJson = pm.response.json();",
+									"    // 2. Schema validation - the core of contract testing",
+									"    const responseJson = pm.response.json();",
 									"",
-									"pm.test(\"Response is a single post object matching schema\", function () {",
-									"    // Define the post schema - this is the \"contract\"",
-									"    const postSchema = {",
-									"        \"type\": \"object\",",
-									"        \"required\": [\"id\", \"title\", \"author\"],",
-									"        \"properties\": {",
-									"            \"id\": { \"type\": \"number\" },",
-									"            \"title\": { \"type\": \"string\" },",
-									"            \"author\": { \"type\": \"string\" }",
-									"        }",
-									"    };",
-									"    ",
-									"    // Validate post against the schema",
-									"    pm.expect(tv4.validate(responseJson, postSchema)).to.be.true;",
-									"});",
+									"    pm.test(\"Response is a single post object matching schema\", function () {",
+									"        // Define the post schema - this is the \"contract\"",
+									"        const postSchema = {",
+									"            \"type\": \"object\",",
+									"            \"required\": [\"id\", \"title\", \"author\"],",
+									"            \"properties\": {",
+									"                \"id\": { \"type\": [\"number\", \"string\"] }, // Allow number or string based on previous test",
+									"                \"title\": { \"type\": \"string\" },",
+									"                \"author\": { \"type\": \"string\" }",
+									"            },",
+									"            \"additionalProperties\": false",
+									"        };",
+									"        ",
+									"        // Validate post against the schema",
+									"         let validationResult = tv4.validateResult(responseJson, postSchema);",
+									"            pm.expect(validationResult.valid, `Post validation failed: ${validationResult.error ? validationResult.error.message : 'Unknown error'} at ${validationResult.error ? validationResult.error.dataPath : ''}`).to.be.true;",
+									"    });",
 									"",
-									"// 3. Verify state - part of contract testing's state verification",
-									"pm.test(\"Post has the requested ID (state verification)\", function () {",
-									"    pm.expect(responseJson.id).to.eql(Number(pm.environment.get(\"postId\")));",
-									"});",
+									"    // 3. Verify state - part of contract testing's state verification",
+									"    pm.test(\"Post has the requested ID (state verification)\", function () {",
+									"        // Compare potentially different types (number vs string)",
+									"        pm.expect(String(responseJson.id)).to.eql(String(expectedPostId));",
+									"    });",
 									"",
-									"// 4. Document the contract",
-									"console.log(\"Contract Verified: GET /posts/{id} returns a post object with id, title, and author\")"
+									"    // 4. Document the contract",
+									"    console.log(\"Contract Verified: GET /posts/{id} returns a post object with id, title, and author matching the schema\")",
+									"}"
 								],
 								"type": "text/javascript",
 								"packages": {}
@@ -149,15 +181,13 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:3000/posts/{{postId}}",
-							"protocol": "http",
+							"raw": "{{baseUrl}}/posts/{{existingPostId}}",
 							"host": [
-								"localhost"
+								"{{baseUrl}}"
 							],
-							"port": "3000",
 							"path": [
 								"posts",
-								"{{postId}}"
+								"{{existingPostId}}"
 							]
 						},
 						"description": "Contract test for getting a single post. This verifies that the provider (API) fulfills the consumer's expectation of receiving a specific post with attributes matching the schema."
@@ -193,14 +223,16 @@
 									"        \"type\": \"object\",",
 									"        \"required\": [\"id\", \"title\", \"author\"],",
 									"        \"properties\": {",
-									"            \"id\": { \"type\": \"number\" },",
+									"            \"id\": { \"type\": [\"number\", \"string\"] }, // JSON Server usually assigns number here, but allow string for safety",
 									"            \"title\": { \"type\": \"string\" },",
 									"            \"author\": { \"type\": \"string\" }",
-									"        }",
+									"        },",
+									"        \"additionalProperties\": false",
 									"    };",
 									"    ",
 									"    // Validate post against the schema",
-									"    pm.expect(tv4.validate(responseJson, postSchema)).to.be.true;",
+									"    let validationResult = tv4.validateResult(responseJson, postSchema);",
+									"     pm.expect(validationResult.valid, `Post validation failed: ${validationResult.error ? validationResult.error.message : 'Unknown error'} at ${validationResult.error ? validationResult.error.dataPath : ''}`).to.be.true;",
 									"    ",
 									"    // Verify the returned data matches what we sent (except for the ID which is assigned by the server)",
 									"    pm.expect(responseJson.title).to.eql(requestBody.title);",
@@ -208,8 +240,13 @@
 									"});",
 									"",
 									"// 3. State management - store new state for future tests",
-									"pm.environment.set(\"newPostId\", responseJson.id);",
-									"console.log(\"Stored newPostId=\" + responseJson.id + \" for state verification in subsequent tests\");",
+									"if (responseJson.id) {",
+									"    pm.environment.set(\"newPostId\", responseJson.id);",
+									"    console.log(\"Stored newPostId=\" + responseJson.id + \" for state verification in subsequent tests\");",
+									"} else {",
+									"     console.error(\"Could not store newPostId, response did not contain an id.\");",
+									"}",
+									"",
 									"",
 									"// 4. Document the contract",
 									"console.log(\"Contract Verified: POST /posts creates and returns a post object with server-assigned id plus submitted title and author\")"
@@ -233,12 +270,10 @@
 							"raw": "{\n    \"title\": \"Contract Test Post\",\n    \"author\": \"Contract Tester\"\n}"
 						},
 						"url": {
-							"raw": "http://localhost:3000/posts",
-							"protocol": "http",
+							"raw": "{{baseUrl}}/posts",
 							"host": [
-								"localhost"
+								"{{baseUrl}}"
 							],
-							"port": "3000",
 							"path": [
 								"posts"
 							]
@@ -251,52 +286,75 @@
 					"name": "Update Post - Contract Test",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Ensure we have an ID to test with",
+									"if (!pm.environment.get(\"newPostId\")) {",
+									"    console.error(\"Pre-request check failed: 'newPostId' not set. Cannot run Update Post test.\");",
+									"    // Optionally, skip the request if the variable is missing",
+									"    // postman.setNextRequest(null); ",
+									"}",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
 									"// Contract test for PUT /posts/{id} endpoint",
+									"const expectedPostId = pm.environment.get(\"newPostId\");",
 									"",
-									"// 1. Basic contract expectations",
-									"pm.test(\"Status code is 200 OK\", function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
+									"// Skip test if prerequisite ID is missing",
+									"if (!expectedPostId) {",
+									"    pm.test.skip(\"Skipping test as 'newPostId' is not set\");",
+									"} else {",
+									"    // 1. Basic contract expectations",
+									"    pm.test(\"Status code is 200 OK\", function () {",
+									"        pm.response.to.have.status(200);",
+									"    });",
 									"",
-									"pm.test(\"Content-Type header exists and is application/json\", function () {",
-									"    pm.response.to.have.header(\"Content-Type\");",
-									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
-									"});",
+									"    pm.test(\"Content-Type header exists and is application/json\", function () {",
+									"        pm.response.to.have.header(\"Content-Type\");",
+									"        pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"    });",
 									"",
-									"// 2. Schema validation - the core of contract testing",
-									"const responseJson = pm.response.json();",
-									"const requestBody = JSON.parse(pm.request.body.raw);",
+									"    // 2. Schema validation - the core of contract testing",
+									"    const responseJson = pm.response.json();",
+									"    const requestBody = JSON.parse(pm.request.body.raw);",
 									"",
-									"pm.test(\"Response is a post object matching schema with updated data\", function () {",
-									"    // Define the post schema - this is the \"contract\"",
-									"    const postSchema = {",
-									"        \"type\": \"object\",",
-									"        \"required\": [\"id\", \"title\", \"author\"],",
-									"        \"properties\": {",
-									"            \"id\": { \"type\": \"number\" },",
-									"            \"title\": { \"type\": \"string\" },",
-									"            \"author\": { \"type\": \"string\" }",
-									"        }",
-									"    };",
-									"    ",
-									"    // Validate post against the schema",
-									"    pm.expect(tv4.validate(responseJson, postSchema)).to.be.true;",
-									"    ",
-									"    // Verify the returned data matches what we sent",
-									"    pm.expect(responseJson.title).to.eql(requestBody.title);",
-									"    pm.expect(responseJson.author).to.eql(requestBody.author);",
-									"});",
+									"    pm.test(\"Response is a post object matching schema with updated data\", function () {",
+									"        // Define the post schema - this is the \"contract\"",
+									"        const postSchema = {",
+									"            \"type\": \"object\",",
+									"            \"required\": [\"id\", \"title\", \"author\"],",
+									"            \"properties\": {",
+									"                \"id\": { \"type\": [\"number\", \"string\"] },",
+									"                \"title\": { \"type\": \"string\" },",
+									"                \"author\": { \"type\": \"string\" }",
+									"            },",
+									"            \"additionalProperties\": false",
+									"        };",
+									"        ",
+									"        // Validate post against the schema",
+									"        let validationResult = tv4.validateResult(responseJson, postSchema);",
+									"        pm.expect(validationResult.valid, `Post validation failed: ${validationResult.error ? validationResult.error.message : 'Unknown error'} at ${validationResult.error ? validationResult.error.dataPath : ''}`).to.be.true;",
+									"        ",
+									"        // Verify the returned data matches what we sent",
+									"        pm.expect(responseJson.title).to.eql(requestBody.title);",
+									"        pm.expect(responseJson.author).to.eql(requestBody.author);",
+									"    });",
 									"",
-									"// 3. Verify state - part of contract testing's state verification",
-									"pm.test(\"Post ID remains unchanged (state verification)\", function () {",
-									"    pm.expect(responseJson.id).to.eql(Number(pm.environment.get(\"newPostId\")));",
-									"});",
+									"    // 3. Verify state - part of contract testing's state verification",
+									"    pm.test(\"Post ID remains unchanged (state verification)\", function () {",
+									"        pm.expect(String(responseJson.id)).to.eql(String(expectedPostId));",
+									"    });",
 									"",
-									"// 4. Document the contract",
-									"console.log(\"Contract Verified: PUT /posts/{id} updates and returns a post object with unchanged id plus updated title and author\")"
+									"    // 4. Document the contract",
+									"    console.log(\"Contract Verified: PUT /posts/{id} updates and returns a post object with unchanged id plus updated title and author\")",
+									"}"
 								],
 								"type": "text/javascript",
 								"packages": {}
@@ -317,12 +375,10 @@
 							"raw": "{\n    \"title\": \"Updated Contract Test Post\",\n    \"author\": \"Updated Contract Tester\"\n}"
 						},
 						"url": {
-							"raw": "http://localhost:3000/posts/{{newPostId}}",
-							"protocol": "http",
+							"raw": "{{baseUrl}}/posts/{{newPostId}}",
 							"host": [
-								"localhost"
+								"{{baseUrl}}"
 							],
-							"port": "3000",
 							"path": [
 								"posts",
 								"{{newPostId}}"
@@ -336,44 +392,88 @@
 					"name": "Delete Post - Contract Test",
 					"event": [
 						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Ensure we have an ID to test with",
+									"if (!pm.environment.get(\"newPostId\")) {",
+									"    console.error(\"Pre-request check failed: 'newPostId' not set. Cannot run Delete Post test.\");",
+									"    // postman.setNextRequest(null); ",
+									"}",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
 							"listen": "test",
 							"script": {
 								"exec": [
 									"// Contract test for DELETE /posts/{id} endpoint",
+									"const deletedPostId = pm.environment.get(\"newPostId\");",
+									"// --- FIX: Capture baseURL before the async call ---",
+									"const baseURL = pm.environment.get(\"baseURL\"); ",
 									"",
-									"// 1. Basic contract expectations",
-									"pm.test(\"Status code is 200 OK\", function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"// 2. Schema validation - for DELETE, often empty object is returned",
-									"try {",
-									"    const responseJson = pm.response.json();",
-									"    ",
-									"    pm.test(\"Response is an empty object (JSON Server specific)\", function () {",
-									"        pm.expect(Object.keys(responseJson).length).to.eql(0);",
+									"// Skip test if prerequisite ID is missing",
+									"if (!deletedPostId) {",
+									"    pm.test.skip(\"Skipping test as 'newPostId' is not set\");",
+									"} else {",
+									"    // 1. Basic contract expectations",
+									"    pm.test(\"Status code is 200 OK\", function () {",
+									"        pm.response.to.have.status(200);",
 									"    });",
-									"} catch (e) {",
-									"    // Some REST APIs might return empty body for DELETE",
-									"    pm.test(\"Response body may be empty\", function() {",
-									"        pm.response.to.be.withBody;",
-									"    });",
-									"}",
 									"",
-									"// 3. State verification - check that resource is actually deleted",
-									"// This is crucial for contract testing - verifying the provider state changed as expected",
-									"pm.test(\"Contract includes verification that resource is actually deleted\", function() {",
-									"    const getDeletedUrl = `http://localhost:3000/posts/${pm.environment.get(\"newPostId\")}`;",
-									"    ",
-									"    pm.sendRequest(getDeletedUrl, function (err, res) {",
-									"        pm.expect(res.code).to.eql(404);",
+									"    // 2. Schema validation - DELETE often returns empty object {} with JSON Server",
+									"    pm.test(\"Response is an empty JSON object\", function () {",
+									"        try {",
+									"            const responseJson = pm.response.json();",
+									"            pm.expect(responseJson).to.be.an('object').that.is.empty;",
+									"        } catch (e) {",
+									"            // Fail the test if response is not valid JSON or not an empty object",
+									"            pm.expect.fail(\"Response was not an empty JSON object. Error: \" + e.message);",
+									"        }",
 									"    });",
-									"});",
 									"",
-									"// 4. Document the contract",
-									"console.log(\"Contract Verified: DELETE /posts/{id} removes the resource and returns empty response or empty object\")"
+									"    // 3. State verification - check that resource is actually deleted",
+									"    // This is crucial for contract testing - verifying the provider state changed as expected",
+									"    pm.test(\"Verify resource is deleted (GET returns 404)\", function() {",
+									"        // --- FIX: Add check to ensure baseURL was captured ---",
+									"        if (!baseURL) {",
+									"            pm.expect.fail(\"baseURL environment variable is not set!\");",
+									"            return; // Stop this test if baseURL is missing",
+									"        }",
+									"",
+									"        // --- FIX: Use the captured baseURL variable ---",
+									"        const getDeletedUrl = `${baseURL}/posts/${deletedPostId}`; ",
+									"        console.log(`Sending verification request to: ${getDeletedUrl}`); // Added for debugging",
+									"",
+									"        pm.sendRequest(getDeletedUrl, (err, res) => {",
+									"            // Check for errors during the sendRequest itself (like network issues)",
+									"            if (err) {",
+									"                console.error(\"Error sending verification request:\", err);",
+									"                // Provide more details in the failure message",
+									"                pm.expect.fail(`Failed to send verification GET request to ${getDeletedUrl}. Error: ${err.message || err}`);",
+									"            } else {",
+									"                 // Check the response status of the verification request",
+									"                 console.log(`Verification response status: ${res.code}`); // Added for debugging",
+									"                pm.expect(res, `Verification GET request to ${getDeletedUrl} should return 404`).to.have.property('code', 404);",
+									"            }",
+									"        });",
+									"    });",
+									"",
+									"    // 4. Clean up environment variable ",
+									"    // Note: This unset happens before the async verification *completes*, ",
+									"    // but deletedPostId was captured earlier, so it's okay.",
+									"    pm.environment.unset(\"newPostId\");",
+									"    console.log(\"Unset newPostId after initiating delete verification.\");",
+									"",
+									"    // 5. Document the contract",
+									"    console.log(\"Contract Verified: DELETE /posts/{id} removes the resource and returns empty object, subsequent GET returns 404\")",
+									"}"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
@@ -381,72 +481,16 @@
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:3000/posts/{{newPostId}}",
-							"protocol": "http",
+							"raw": "{{baseUrl}}/posts/{{newPostId}}",
 							"host": [
-								"localhost"
+								"{{baseUrl}}"
 							],
-							"port": "3000",
 							"path": [
 								"posts",
 								"{{newPostId}}"
 							]
 						},
 						"description": "Contract test for deleting a post. This verifies that the provider (API) accepts the consumer's deletion request and confirms that the resource is no longer available."
-					},
-					"response": []
-				},
-				{
-					"name": "Get Non-existent Post - Error Contract Test",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"// Contract test for error response from GET /posts/{non-existent-id} endpoint",
-									"// Error handling contracts are as important as success contracts",
-									"",
-									"// 1. Basic contract expectations for error response",
-									"pm.test(\"Status code is 404 Not Found\", function () {",
-									"    pm.response.to.have.status(404);",
-									"});",
-									"",
-									"// 2. Error response schema validation (may vary by API)",
-									"try {",
-									"    const responseJson = pm.response.json();",
-									"    ",
-									"    pm.test(\"Error response format matches contract\", function() {",
-									"        // JSON Server typically returns empty object for 404",
-									"        pm.expect(Object.keys(responseJson).length).to.eql(0);",
-									"    });",
-									"} catch (e) {",
-									"    // Some APIs might return empty body for 404",
-									"    console.log(\"Empty response body for 404 is acceptable in this contract\");",
-									"}",
-									"",
-									"// 3. Document the error contract",
-									"console.log(\"Contract Verified: GET /posts/{non-existent-id} returns 404 Not Found\")"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "http://localhost:3000/posts/9999",
-							"protocol": "http",
-							"host": [
-								"localhost"
-							],
-							"port": "3000",
-							"path": [
-								"posts",
-								"9999"
-							]
-						},
-						"description": "Contract test for error handling when getting a non-existent post. This verifies that the provider (API) responds appropriately when a consumer requests a resource that doesn't exist."
 					},
 					"response": []
 				}
@@ -486,29 +530,44 @@
 									"        \"type\": \"object\",",
 									"        \"required\": [\"id\", \"body\", \"postId\"],",
 									"        \"properties\": {",
-									"            \"id\": { \"type\": \"number\" },",
+									"            \"id\": { \"type\": [\"number\", \"string\"] },",
 									"            \"body\": { \"type\": \"string\" },",
-									"            \"postId\": { \"type\": \"number\" }",
-									"        }",
+									"            \"postId\": { \"type\": [\"number\", \"string\"] } // postId might be number or string",
+									"        },",
+									"         \"additionalProperties\": false",
 									"    };",
 									"    ",
 									"    // Validate each comment against the schema",
-									"    responseJson.forEach(function(comment) {",
-									"        pm.expect(tv4.validate(comment, commentSchema)).to.be.true;",
-									"    });",
+									"    if (responseJson.length > 0) {",
+									"        responseJson.forEach(function(comment) {",
+									"            let validationResult = tv4.validateResult(comment, commentSchema);",
+									"            pm.expect(validationResult.valid, `Comment validation failed: ${validationResult.error ? validationResult.error.message : 'Unknown error'} at ${validationResult.error ? validationResult.error.dataPath : ''}`).to.be.true;",
+									"        });",
+									"    } else {",
+									"        console.log(\"Skipping individual comment schema validation as the array is empty.\");",
+									"    }",
 									"});",
 									"",
 									"// 3. Store state for future tests - part of contract testing's state verification",
-									"if (responseJson.length > 0) {",
-									"    pm.environment.set(\"commentId\", responseJson[0].id);",
-									"    console.log(\"Stored commentId=\" + responseJson[0].id + \" for state verification in subsequent tests\");",
-									"    ",
-									"    // Also store a postId for creating new comments",
-									"    pm.environment.set(\"commentPostId\", responseJson[0].postId);",
+									"if (responseJson.length > 0 && responseJson[0].id) {",
+									"    pm.environment.set(\"existingCommentId\", responseJson[0].id);",
+									"    console.log(\"Stored existingCommentId=\" + responseJson[0].id + \" for state verification in subsequent tests\");",
+									"    // Also store a postId if available, needed for creating new comments relative to an existing post",
+									"    if(responseJson[0].postId) {",
+									"       pm.environment.set(\"existingCommentPostId\", responseJson[0].postId); ",
+									"       console.log(\"Stored existingCommentPostId=\" + responseJson[0].postId);",
+									"    }",
+									"} else {",
+									"    console.log(\"Could not store existingCommentId, response array might be empty or first item lacks id.\");",
+									"    // If no comments exist, we might need a default postId from the 'posts' setup to create one",
+									"    if (!pm.environment.get(\"existingCommentPostId\") && pm.environment.get(\"existingPostId\")) {",
+									"       pm.environment.set(\"existingCommentPostId\", pm.environment.get(\"existingPostId\"));",
+									"       console.log(\"Using existingPostId as existingCommentPostId for creating comments.\")",
+									"    }",
 									"}",
 									"",
 									"// 4. Document the contract",
-									"console.log(\"Contract Verified: GET /comments returns array of comment objects each with id, body, and postId\")"
+									"console.log(\"Contract Verified: GET /comments returns array of comment objects each with id, body, and postId matching schema\")"
 								],
 								"type": "text/javascript",
 								"packages": {}
@@ -519,12 +578,10 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:3000/comments",
-							"protocol": "http",
+							"raw": "{{baseUrl}}/comments",
 							"host": [
-								"localhost"
+								"{{baseUrl}}"
 							],
-							"port": "3000",
 							"path": [
 								"comments"
 							]
@@ -532,8 +589,399 @@
 						"description": "Contract test for getting all comments. This verifies that the provider (API) fulfills the consumer's expectation of receiving a list of comments with specific attributes."
 					},
 					"response": []
+				},
+				{
+					"name": "Get Single Comment - Contract Test",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Ensure we have an ID to test with",
+									"if (!pm.environment.get(\"existingCommentId\")) {",
+									"    console.error(\"Pre-request check failed: 'existingCommentId' not set. Cannot run Get Single Comment test.\");",
+									"    // postman.setNextRequest(null); ",
+									"}",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for GET /comments/{id} endpoint",
+									"const expectedCommentId = pm.environment.get(\"existingCommentId\");",
+									"",
+									"// Skip test if prerequisite ID is missing",
+									"if (!expectedCommentId) {",
+									"    pm.test.skip(\"Skipping test as 'existingCommentId' is not set\");",
+									"} else {",
+									"    // 1. Basic contract expectations",
+									"    pm.test(\"Status code is 200 OK\", function () {",
+									"        pm.response.to.have.status(200);",
+									"    });",
+									"",
+									"    pm.test(\"Content-Type header exists and is application/json\", function () {",
+									"        pm.response.to.have.header(\"Content-Type\");",
+									"        pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"    });",
+									"",
+									"    // 2. Schema validation",
+									"    const responseJson = pm.response.json();",
+									"    pm.test(\"Response is a single comment object matching schema\", function () {",
+									"        const commentSchema = {",
+									"            \"type\": \"object\",",
+									"            \"required\": [\"id\", \"body\", \"postId\"],",
+									"            \"properties\": {",
+									"                \"id\": { \"type\": [\"number\", \"string\"] },",
+									"                \"body\": { \"type\": \"string\" },",
+									"                \"postId\": { \"type\": [\"number\", \"string\"] }",
+									"            },",
+									"            \"additionalProperties\": false",
+									"        };",
+									"        let validationResult = tv4.validateResult(responseJson, commentSchema);",
+									"        pm.expect(validationResult.valid, `Comment validation failed: ${validationResult.error ? validationResult.error.message : 'Unknown error'} at ${validationResult.error ? validationResult.error.dataPath : ''}`).to.be.true;",
+									"    });",
+									"",
+									"    // 3. Verify state ",
+									"    pm.test(\"Comment has the requested ID (state verification)\", function () {",
+									"        pm.expect(String(responseJson.id)).to.eql(String(expectedCommentId));",
+									"    });",
+									"",
+									"    // 4. Document the contract",
+									"    console.log(\"Contract Verified: GET /comments/{id} returns a comment object matching schema\")",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/comments/{{existingCommentId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"comments",
+								"{{existingCommentId}}"
+							]
+						},
+						"description": "Contract test for getting a single comment."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Comment - Contract Test",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Ensure we have a post ID to associate the comment with",
+									"let postId = pm.environment.get(\"existingCommentPostId\") || pm.environment.get(\"existingPostId\");",
+									"if (!postId) {",
+									"     console.error(\"Pre-request check failed: No suitable postId found ('existingCommentPostId' or 'existingPostId'). Cannot run Create Comment test.\");",
+									"     // postman.setNextRequest(null); ",
+									"} else {",
+									"    pm.variables.set(\"targetPostId\", postId); // Use a temporary variable for the request body",
+									"    console.log(\"Using targetPostId: \" + postId);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for POST /comments endpoint",
+									"const targetPostId = pm.variables.get(\"targetPostId\");",
+									"",
+									"// Skip test if prerequisite ID is missing",
+									"if (!targetPostId) {",
+									"    pm.test.skip(\"Skipping test as 'targetPostId' is not set\");",
+									"} else {",
+									"    // 1. Basic contract expectations",
+									"    pm.test(\"Status code is 201 Created\", function () {",
+									"        pm.response.to.have.status(201);",
+									"    });",
+									"",
+									"    pm.test(\"Content-Type header exists and is application/json\", function () {",
+									"        pm.response.to.have.header(\"Content-Type\");",
+									"        pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"    });",
+									"",
+									"    // 2. Schema validation & Data verification",
+									"    const responseJson = pm.response.json();",
+									"    const requestBody = JSON.parse(pm.request.body.raw);",
+									"    pm.test(\"Response is a comment object matching schema with created data\", function () {",
+									"        const commentSchema = {",
+									"            \"type\": \"object\",",
+									"            \"required\": [\"id\", \"body\", \"postId\"],",
+									"            \"properties\": {",
+									"                \"id\": { \"type\": [\"number\", \"string\"] },",
+									"                \"body\": { \"type\": \"string\" },",
+									"                \"postId\": { \"type\": [\"number\", \"string\"] }",
+									"            },",
+									"             \"additionalProperties\": false",
+									"        };",
+									"        let validationResult = tv4.validateResult(responseJson, commentSchema);",
+									"        pm.expect(validationResult.valid, `Comment validation failed: ${validationResult.error ? validationResult.error.message : 'Unknown error'} at ${validationResult.error ? validationResult.error.dataPath : ''}`).to.be.true;",
+									"        ",
+									"        // Verify returned data matches submitted data (check postId type-insensitively)",
+									"        pm.expect(responseJson.body).to.eql(requestBody.body);",
+									"        pm.expect(String(responseJson.postId)).to.eql(String(requestBody.postId));",
+									"    });",
+									"",
+									"    // 3. State management",
+									"    if (responseJson.id) {",
+									"        pm.environment.set(\"newCommentId\", responseJson.id);",
+									"        console.log(\"Stored newCommentId=\" + responseJson.id + \" for subsequent tests\");",
+									"    } else {",
+									"        console.error(\"Could not store newCommentId, response did not contain an id.\");",
+									"    }",
+									"",
+									"    // 4. Document the contract",
+									"    console.log(\"Contract Verified: POST /comments creates and returns a comment object matching schema\")",
+									"}",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"body\": \"This is a contract test comment\",\n    \"postId\": {{targetPostId}}\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/comments",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"comments"
+							]
+						},
+						"description": "Contract test for creating a comment."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Comment - Contract Test",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Ensure we have an ID to test with",
+									"if (!pm.environment.get(\"newCommentId\")) {",
+									"    console.error(\"Pre-request check failed: 'newCommentId' not set. Cannot run Update Comment test.\");",
+									"    // postman.setNextRequest(null); ",
+									"}",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for PUT /comments/{id} endpoint",
+									"const expectedCommentId = pm.environment.get(\"newCommentId\");",
+									"",
+									"// Skip test if prerequisite ID is missing",
+									"if (!expectedCommentId) {",
+									"    pm.test.skip(\"Skipping test as 'newCommentId' is not set\");",
+									"} else {",
+									"    // 1. Basic contract expectations",
+									"    pm.test(\"Status code is 200 OK\", function () {",
+									"        pm.response.to.have.status(200);",
+									"    });",
+									"",
+									"    pm.test(\"Content-Type header exists and is application/json\", function () {",
+									"        pm.response.to.have.header(\"Content-Type\");",
+									"        pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+									"    });",
+									"",
+									"    // 2. Schema validation & Data verification",
+									"    const responseJson = pm.response.json();",
+									"    const requestBody = JSON.parse(pm.request.body.raw);",
+									"    pm.test(\"Response is a comment object matching schema with updated data\", function () {",
+									"        const commentSchema = {",
+									"            \"type\": \"object\",",
+									"            \"required\": [\"id\", \"body\", \"postId\"], // JSON Server PUT returns full object",
+									"            \"properties\": {",
+									"                \"id\": { \"type\": [\"number\", \"string\"] },",
+									"                \"body\": { \"type\": \"string\" },",
+									"                \"postId\": { \"type\": [\"number\", \"string\"] }",
+									"            },",
+									"            \"additionalProperties\": false",
+									"        };",
+									"         let validationResult = tv4.validateResult(responseJson, commentSchema);",
+									"        pm.expect(validationResult.valid, `Comment validation failed: ${validationResult.error ? validationResult.error.message : 'Unknown error'} at ${validationResult.error ? validationResult.error.dataPath : ''}`).to.be.true;",
+									"        ",
+									"        // Verify updated data ",
+									"        pm.expect(responseJson.body).to.eql(requestBody.body);",
+									"        // Optionally verify postId didn't change if that's the expectation",
+									"        // pm.expect(String(responseJson.postId)).to.eql(String(pm.environment.get(\"targetPostId\"))); ",
+									"    });",
+									"",
+									"    // 3. Verify state",
+									"    pm.test(\"Comment ID remains unchanged (state verification)\", function () {",
+									"        pm.expect(String(responseJson.id)).to.eql(String(expectedCommentId));",
+									"    });",
+									"",
+									"    // 4. Document the contract",
+									"    console.log(\"Contract Verified: PUT /comments/{id} updates and returns a comment object matching schema\")",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"body\": \"This is the updated contract test comment\",\n    \"postId\": {{targetPostId}} \n    \n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/comments/{{newCommentId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"comments",
+								"{{newCommentId}}"
+							]
+						},
+						"description": "Contract test for updating a comment."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Comment - Contract Test",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Ensure we have an ID to test with",
+									"if (!pm.environment.get(\"newCommentId\")) {",
+									"    console.error(\"Pre-request check failed: 'newCommentId' not set. Cannot run Delete Comment test.\");",
+									"    // postman.setNextRequest(null); ",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for DELETE /comments/{id} endpoint",
+									"const deletedCommentId = pm.environment.get(\"newCommentId\");",
+									"// --- IMPROVEMENT: Capture baseURL before the async call ---",
+									"const baseURL = pm.environment.get(\"baseURL\"); ",
+									"",
+									"// Skip test if prerequisite ID is missing",
+									"if (!deletedCommentId) {",
+									"    pm.test.skip(\"Skipping test as 'newCommentId' is not set\");",
+									"} else {",
+									"    // 1. Basic contract expectations",
+									"    pm.test(\"Status code is 200 OK\", function () {",
+									"        pm.response.to.have.status(200);",
+									"    });",
+									"",
+									"    // 2. Schema validation (Response Body Check)",
+									"    pm.test(\"Response is an empty JSON object\", function () {",
+									"       try {",
+									"            const responseJson = pm.response.json();",
+									"            pm.expect(responseJson).to.be.an('object').that.is.empty;",
+									"        } catch (e) {",
+									"            pm.expect.fail(\"Response was not an empty JSON object. Error: \" + e.message); ",
+									"        }",
+									"    });",
+									"",
+									"    // 3. State verification ",
+									"     pm.test(\"Verify resource is deleted (GET returns 404)\", function() {",
+									"        // --- IMPROVEMENT: Add check to ensure baseURL was captured ---",
+									"        if (!baseURL) {",
+									"            pm.expect.fail(\"baseURL environment variable is not set!\");",
+									"            return; // Stop this test if baseURL is missing",
+									"        }",
+									"",
+									"        // --- IMPROVEMENT: Use the captured baseURL variable ---",
+									"        const getDeletedUrl = `${baseURL}/comments/${deletedCommentId}`; ",
+									"        console.log(`Sending verification request to: ${getDeletedUrl}`); ",
+									"",
+									"        pm.sendRequest(getDeletedUrl, (err, res) => {",
+									"            if (err) { ",
+									"                console.error(\"Error sending verification request:\", err);",
+									"                pm.expect.fail(`Failed to send verification GET request to ${getDeletedUrl}. Error: ${err.message || err}`);",
+									"            } else {",
+									"                console.log(`Verification response status: ${res.code}`); ",
+									"                pm.expect(res, `Verification GET request to ${getDeletedUrl} should return 404`).to.have.property('code', 404); ",
+									"            }",
+									"        });",
+									"    });",
+									"",
+									"    // 4. Clean up environment variable",
+									"    pm.environment.unset(\"newCommentId\"); ",
+									"    console.log(\"Unset newCommentId after initiating delete verification.\"); ",
+									"",
+									"    // 5. Document the contract",
+									"    console.log(\"Contract Verified: DELETE /comments/{id} removes resource, returns empty object, subsequent GET returns 404\")",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/comments/{{newCommentId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"comments",
+								"{{newCommentId}}"
+							]
+						},
+						"description": "Contract test for deleting a comment."
+					},
+					"response": []
 				}
-			]
+			],
+			"description": "Contract tests for the comments endpoints."
 		},
 		{
 			"name": "Profile Contract Tests",
@@ -567,15 +1015,17 @@
 									"        \"required\": [\"name\"],",
 									"        \"properties\": {",
 									"            \"name\": { \"type\": \"string\" }",
-									"        }",
+									"        },",
+									"        \"additionalProperties\": false",
 									"    };",
 									"    ",
 									"    // Validate profile against the schema",
-									"    pm.expect(tv4.validate(responseJson, profileSchema)).to.be.true;",
+									"    let validationResult = tv4.validateResult(responseJson, profileSchema);",
+									"    pm.expect(validationResult.valid, `Profile validation failed: ${validationResult.error ? validationResult.error.message : 'Unknown error'} at ${validationResult.error ? validationResult.error.dataPath : ''}`).to.be.true;",
 									"});",
 									"",
 									"// 3. Document the contract",
-									"console.log(\"Contract Verified: GET /profile returns a profile object with name property\")"
+									"console.log(\"Contract Verified: GET /profile returns a profile object with name(string) property\")"
 								],
 								"type": "text/javascript"
 							}
@@ -585,12 +1035,10 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:3000/profile",
-							"protocol": "http",
+							"raw": "{{baseUrl}}/profile",
 							"host": [
-								"localhost"
+								"{{baseUrl}}"
 							],
-							"port": "3000",
 							"path": [
 								"profile"
 							]
@@ -600,6 +1048,328 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Negative Contract Tests",
+			"item": [
+				{
+					"name": "Get Non-existent Post - Error Contract Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for error response from GET /posts/{non-existent-id} endpoint",
+									"// Error handling contracts are as important as success contracts",
+									"",
+									"// 1. Basic contract expectations for error response",
+									"pm.test(\"Status code is 404 Not Found\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"// 2. Error response validation (JSON Server often returns empty object)",
+									"pm.test(\"Response is an empty JSON object\", function () {",
+									"    try {",
+									"            const responseJson = pm.response.json();",
+									"            pm.expect(responseJson).to.be.an('object').that.is.empty;",
+									"        } catch (e) {",
+									"            pm.expect.fail(\"Response was not an empty JSON object. Error: \" + e.message);",
+									"        }",
+									"});",
+									"",
+									"// 3. Document the error contract",
+									"console.log(\"Contract Verified: GET /posts/{non-existent-id} returns 404 Not Found with empty object body\")"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/posts/99999",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"posts",
+								"99999"
+							]
+						},
+						"description": "Contract test for error handling when getting a non-existent post. This verifies that the provider (API) responds appropriately when a consumer requests a resource that doesn't exist."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Post - Missing Required Field",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for error response when POSTing invalid data",
+									"",
+									"// --- Test Setup ---",
+									"const expectedErrorStatusCode = 400; // Ideally, we expect 400 Bad Request for client errors",
+									"const actualErrorStatusCode = 500; // We might accept 500 if server has internal issue processing bad data",
+									"const incorrectSuccessStatusCode = 201;",
+									"",
+									"// --- Test Execution and Verification ---",
+									"const responseStatusCode = pm.response.code;",
+									"const responseBody = pm.response.text();",
+									"let responseJson = null;",
+									"try {",
+									"    responseJson = pm.response.json();",
+									"} catch (e) {",
+									"    console.log(\"Response body is not valid JSON.\");",
+									"}",
+									"",
+									"pm.test(`Status code should be an error (${expectedErrorStatusCode} or ${actualErrorStatusCode}), NOT ${incorrectSuccessStatusCode}`, function () {",
+									"    // Check if we got the INCORRECT success code",
+									"    if (responseStatusCode === incorrectSuccessStatusCode) {",
+									"        ",
+									"        let createdId = null;",
+									"        if (responseJson && responseJson.id) {",
+									"            createdId = responseJson.id;",
+									"            console.warn(`API incorrectly returned ${incorrectSuccessStatusCode} Created for invalid data. Resource ID: ${createdId}. Attempting cleanup.`);",
+									"            ",
+									"            // --- Attempt Cleanup ---",
+									"            const baseUrl = pm.environment.get(\"baseUrl\");",
+									"            if (baseUrl && createdId) {",
+									"                const deleteUrl = `${baseUrl}/posts/${createdId}`;",
+									"                pm.sendRequest({",
+									"                    url: deleteUrl,",
+									"                    method: 'DELETE'",
+									"                }, function (err, res) {",
+									"                    if (err) {",
+									"                        console.error(`Cleanup DELETE request failed for ${deleteUrl}:`, err);",
+									"                    } else if (res.code === 200) {",
+									"                        console.log(`Successfully cleaned up incorrectly created post with ID: ${createdId}`);",
+									"                    } else {",
+									"                         console.warn(`Cleanup DELETE for ID ${createdId} returned status ${res.code}`);",
+									"                    }",
+									"                });",
+									"            } else {",
+									"                 console.error(`Cannot attempt cleanup: baseUrl ('${baseUrl}') or createdId ('${createdId}') is missing.`);",
+									"            }",
+									"        } else {",
+									"             console.error(`API incorrectly returned ${incorrectSuccessStatusCode} but response body did not contain an 'id' for cleanup.`);",
+									"        }",
+									"        ",
+									"        // --- Explicitly FAIL the test ---",
+									"        // Even though we attempted cleanup, the API's behavior was wrong.",
+									"        pm.expect.fail(`API incorrectly returned ${incorrectSuccessStatusCode} Created for invalid data instead of an error status (e.g., ${expectedErrorStatusCode}/${actualErrorStatusCode}). Cleanup attempted.`);",
+									"",
+									"    } else {",
+									"        // Check if we got one of the EXPECTED error codes",
+									"        pm.expect(responseStatusCode, `Expected error status ${expectedErrorStatusCode} or ${actualErrorStatusCode}`).to.be.oneOf([expectedErrorStatusCode, actualErrorStatusCode]);",
+									"        ",
+									"        // If it was an expected error, check the body doesn't look like success",
+									"        pm.test(\"Error response body should not contain created data\", function() {",
+									"            pm.expect(responseBody).to.not.include('\"id\":'); ",
+									"             // Add more specific error body checks if the API defines an error schema",
+									"             // e.g., pm.expect(responseJson).to.have.property('error');",
+									"        });",
+									"    }",
+									"});",
+									"",
+									"// Document the contract (what SHOULD happen)",
+									"console.log(`Contract Verified: POST /posts with missing required field should return error status ${expectedErrorStatusCode} or ${actualErrorStatusCode}`);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"author\": \"Incomplete Tester\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/posts",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"posts"
+							]
+						},
+						"description": "Contract test verifying error handling when required fields are missing in POST request. Expecting 500 due to JSON server limitations."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Post - Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for error response when PUTting to non-existent ID",
+									"",
+									"// 1. Basic contract expectations for error response",
+									"pm.test(\"Status code is 404 Not Found\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"// 2. Error response validation (JSON Server often returns empty object)",
+									"pm.test(\"Response is an empty JSON object\", function () {",
+									"     try {",
+									"            const responseJson = pm.response.json();",
+									"            pm.expect(responseJson).to.be.an('object').that.is.empty;",
+									"        } catch (e) {",
+									"            pm.expect.fail(\"Response was not an empty JSON object. Error: \" + e.message);",
+									"        }",
+									"});",
+									"",
+									"// 3. Document the error contract",
+									"console.log(\"Contract Verified: PUT /posts/{non-existent-id} returns 404 Not Found with empty object body\")"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Ghost Post\",\n    \"author\": \"Ghost Author\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/posts/99999",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"posts",
+								"99999"
+							]
+						},
+						"description": "Contract test verifying error handling when updating a non-existent post."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Non-existent Comment - Error Contract Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Contract test for error response from GET /comments/{non-existent-id} endpoint",
+									"",
+									"pm.test(\"Status code is 404 Not Found\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Response is an empty JSON object\", function () {",
+									"    try {",
+									"            const responseJson = pm.response.json();",
+									"            pm.expect(responseJson).to.be.an('object').that.is.empty;",
+									"        } catch (e) {",
+									"            pm.expect.fail(\"Response was not an empty JSON object. Error: \" + e.message);",
+									"        }",
+									"});",
+									"",
+									"console.log(\"Contract Verified: GET /comments/{non-existent-id} returns 404 Not Found with empty object body\")"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/comments/99999",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"comments",
+								"99999"
+							]
+						},
+						"description": "Contract test for error handling when getting a non-existent comment."
+					},
+					"response": []
+				}
+			],
+			"description": "Tests verifying the API's contract for error conditions."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "existingPostId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "newPostId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "existingCommentId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "newCommentId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "existingCommentPostId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "targetPostId",
+			"value": "",
+			"type": "string"
 		}
 	]
 }

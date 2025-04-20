@@ -1,140 +1,140 @@
 # Test Execution Plan for Cashier System
 
-This document outlines a prioritized approach for executing the cashier system test cases, which correspond to scenarios in the [cashier.feature](bdd-specifications/cashier.feature) file.
+This document outlines a prioritized approach for executing the cashier system test cases documented in [test-cases.md](test-cases.md), which correspond to scenarios in the [cashier.feature](bdd-specifications/cashier.feature) file.
 
 ## Test Design Strategy
 
 Our test execution plan is designed based on the following principles:
 
-1. **Risk-Based Prioritization**: Tests are prioritized based on their importance to core business functionality and potential impact of failures.
-
-2. **Progressive Testing**: Starting with fundamental functionality before moving to more complex features.
-
-3. **Dependency Consideration**: Tests are organized to account for dependencies between different system components.
-
-4. **Efficiency**: Grouping related tests to minimize setup/teardown overhead.
+1.  **Risk-Based Prioritization**: Tests are prioritized based on their importance to core business functionality and potential impact of failures. Critical discount calculations and basic cart operations are tested first.
+2.  **Progressive Testing**: Starting with fundamental functionality (loading products, adding items) before moving to more complex features (discount combinations, edge cases).
+3.  **Dependency Consideration**: Tests are organized to account for dependencies (e.g., cart functionality must work before complex discount tests).
+4.  **Efficiency**: Grouping related tests (e.g., all tests for a specific discount rule) to minimize setup/teardown overhead where possible.
 
 ## Execution Phases
 
-### Phase 1: Core Functionality Tests (Critical Priority)
+### Phase 1: Core Functionality & Rule Thresholds (Critical Priority)
 
-These tests verify the fundamental features of the cashier system:
+These tests verify the absolute fundamental features required for the system to operate and apply basic discounts correctly at their trigger points.
 
-1. **TC-PM-001**: Verify Product Loading from YAML
-2. **TC-PM-002**: Add Single Product to Cart
-3. **TC-PM-003**: Add Multiple Units of Same Product
-4. **TC-PM-004**: Add Different Products to Cart
-5. **TC-DR-001**: Free Rule - Buy One Get One Free (Green Tea)
-6. **TC-DR-004**: Reduced Price Rule - Buy More Than N Pay X Price (Strawberries)
-7. **TC-DR-006**: Fraction Price Rule - Buy More Than N Pay X% (Coffee)
-8. **TC-DR-008**: Multiple Discount Rules Applied to Different Products
+1.  **TC-PM-001**: Verify Product Loading from YAML
+2.  **TC-PM-002**: Add Single Product to Cart
+3.  **TC-PM-003**: Add Multiple Units of Same Product
+4.  **TC-PM-004**: Add Different Products to Cart
+5.  **TC-DR-001**: Free Rule - Buy One Get One Free (Green Tea - threshold)
+6.  **TC-DR-004**: Reduced Price Rule - Buy >= 3 Pay £4.50 (Strawberries - threshold)
+7.  **TC-DR-006**: Fraction Price Rule - Buy >= 3 Pay 2/3 (Coffee - threshold)
+8.  **TC-DR-008**: Multiple Discount Rules Applied (Different Products)
 
-**Rationale**: These tests cover the basic cart operations and each discount rule type, which are essential for the system to be considered functional. Product loading is tested first as other functionality depends on it.
+**Rationale**: Covers basic product handling and ensures each discount type works at its minimum trigger quantity. Verifies the core calculation engine for single rules and a simple combination. Essential for basic functionality.
 
-### Phase 2: Extended Functionality Tests (High Priority)
+### Phase 2: Extended Rule Application & Cart Management (High Priority)
 
-These tests verify additional important features:
+These tests verify additional important rule scenarios and core cart management operations beyond just adding items.
 
-1. **TC-DR-002**: Free Rule - Buy One Get One Free (Multiple Pairs)
-2. **TC-DR-003**: Free Rule - Buy One Get One Free (Odd Number)
-3. **TC-DR-005**: Reduced Price Rule - Above Threshold
-4. **TC-DR-007**: Fraction Price Rule - Above Threshold
-5. **TC-DR-009**: Combination of items triggering multiple rules
-6. **TC-PM-005**: Update Product Quantity in Cart
-7. **TC-PM-006**: Remove Product from Cart
-8. **TC-PM-007**: Clear Cart
-9. **TC-PM-008**: Empty Cart Total Price
-10. **TC-DR-010**: Add items incrementally to trigger a rule
+1.  **TC-DR-002**: Free Rule - Buy One Get One Free (Multiple Pairs)
+2.  **TC-DR-003**: Free Rule - Buy One Get One Free (Odd Number)
+3.  **TC-DR-005**: Reduced Price Rule - Above Threshold
+4.  **TC-DR-007**: Fraction Price Rule - Above Threshold
+5.  **TC-DR-009**: Complex Combination triggering multiple rules
+6.  **TC-PM-005**: Update existing product quantity
+7.  **TC-PM-006**: Remove product from cart
+8.  **TC-PM-007**: Clear entire cart
+9.  **TC-DR-010**: Add items incrementally to trigger a rule
 
-**Rationale**: These tests cover additional important scenarios that extend the basic functionality, including additional discount threshold tests and cart management operations.
+**Rationale**: Covers rule behavior beyond the initial threshold, important variations (like odd quantities for BOGO), complex combinations, and essential cart state management (update, remove, clear), ensuring the cart behaves correctly through typical user actions.
 
-### Phase 3: Configuration and Less Common Scenarios (Medium Priority)
+### Phase 3: Configuration, Specific Edge Cases & UI (Medium Priority)
 
-1. **TC-CF-001**: Custom Product File Path
-2. **TC-CF-002**: Custom Rules File Path
-3. **TC-EC-004**: Multiple Applicable Discount Rules
-4. **TC-UI-001**: Cart Display Accuracy (if applicable)
-5. **TC-UI-002**: Discount Visibility (if applicable)
+These tests cover configuration flexibility, specific functional edge cases, and UI checks (if applicable).
 
-**Rationale**: These tests verify configuration capabilities and less common scenarios that are important for flexibility but not critical for core functionality.
+1.  **TC-CF-001**: Custom Product File Path
+2.  **TC-CF-002**: Custom Rules File Path
+3.  **TC-EC-004**: Multiple Applicable Discount Rules (Hypothetical - if allowed)
+4.  **TC-EC-006**: Update Quantity to Zero (results in item removal)
+5.  **TC-UI-001**: Cart Display Accuracy (if applicable)
+6.  **TC-UI-002**: Discount Visibility (if applicable)
 
-### Phase 4: Edge Cases and Error Handling (Lower Priority)
+**Rationale**: Verifies non-default configurations, handling of potential rule conflicts, the specific case of zeroing out quantity via update, and presentation layer accuracy. Important for flexibility and usability but secondary to core calculations.
 
-1. **TC-EC-001**: Very Large Quantities
-2. **TC-EC-002**: Negative Quantities
-3. **TC-EC-003**: Non-existent Product Code
-4. **TC-CF-003**: Invalid Products YAML Format
-5. **TC-CF-004**: Invalid Rules YAML Format
+### Phase 4: Robustness, Error Handling & Low Priority Checks (Lower Priority)
 
-**Rationale**: These tests verify the system's behavior in unusual or error conditions. While important for robustness, failures in these areas would generally have less impact than failures in core functionality.
+These tests verify the system's behavior under unusual conditions, invalid inputs, and configuration errors.
+
+1.  **TC-PM-008**: Empty cart total price calculation
+2.  **TC-EC-001**: Very Large Quantities (Calculation Accuracy/Performance)
+3.  **TC-EC-002**: Negative Quantities (Input Rejection)
+4.  **TC-EC-003**: Non-existent Product Code (Input Rejection)
+5.  **TC-EC-005**: Add Zero Quantity (Input Rejection/Ignored)
+6.  **TC-CF-003**: Invalid Products YAML Format (Error Handling)
+7.  **TC-CF-004**: Invalid Rules YAML Format (Error Handling)
+
+**Rationale**: Focuses on system stability and graceful error handling when faced with invalid data or configuration issues. While important for a robust system, failures here are generally less impactful on core positive flows than failures in earlier phases.
 
 ## Test Dependencies
 
-Some tests have dependencies that should be considered:
+Key dependencies influencing the execution order:
 
-- Configuration tests (TC-CF-*) require working product loading (TC-PM-001)
-- Discount tests (TC-DR-*) require working cart functionality (TC-PM-*)
-- Multiple discount test (TC-DR-008) requires individual discount rules to work correctly
-- UI tests (TC-UI-*) depend on all underlying functionality working correctly
+*   Product Loading (`TC-PM-001`) must pass before any cart operations or discount tests.
+*   Basic Add-to-Cart (`TC-PM-002`, `TC-PM-003`, `TC-PM-004`) must pass before testing discounts or other cart management actions.
+*   Individual discount rules (`TC-DR-001`, `TC-DR-004`, `TC-DR-006`) should ideally work before testing complex combinations (`TC-DR-008`, `TC-DR-009`).
+*   Configuration tests (`TC-CF-*`) depend on the basic system startup and product loading mechanisms.
+*   UI tests (`TC-UI-*`) depend on all underlying cart and discount logic working correctly.
 
-These dependencies have been considered in the phase ordering to minimize the impact of failures.
+These dependencies are inherently reflected in the phased approach.
 
 ## Success Criteria
 
-Test execution is considered successful when:
+Test execution is considered successful for a release candidate when:
 
-1. All Phase 1 (Critical Priority) tests pass without issues
-2. At least 90% of Phase 2 (High Priority) tests pass without issues
-3. No critical or high-severity defects are found
-4. All defects are documented with clear steps to reproduce
+1.  All Phase 1 (Critical Priority) tests pass.
+2.  All Phase 2 (High Priority) tests pass.
+3.  At least 95% of Phase 3 (Medium Priority) tests pass, with clear justification and risk assessment for any failures.
+4.  No Critical or High severity defects remain open.
+5.  All defects found during execution are documented with clear steps to reproduce, severity, and priority assigned.
 
 ## Test Data Requirements
 
-### Products Data
-- Green Tea (GR1): £3.11
-- Strawberries (SR1): £5.00
-- Coffee (CF1): £11.23
+### Products Data (from `products.yml`)
+*   Green Tea (GR1): £3.11
+*   Strawberries (SR1): £5.00
+*   Coffee (CF1): £11.23
 
-### Discount Rules Data
-- Free Rule (Buy N get N free): Configured for Green Tea (Buy 1 get 1 free)
-- Reduced Price Rule (Buy > N pay X price): Configured for Strawberries (Buy 3 or more, pay £4.50 each)
-- Fraction Price Rule (Buy > N pay X% of original price): Configured for Coffee (Buy 3 or more, pay 2/3 of price)
+### Discount Rules Data (from `rules.yml`)
+*   GR1: Buy 1 get 1 free (FreeRule, N=1, M=1)
+*   SR1: Buy 3 or more, pay £4.50 each (ReducedPriceRule, N=3, X=4.50)
+*   CF1: Buy 3 or more, pay 2/3 of price (~£7.49 each) (FractionPriceRule, N=3, Percentage=66.666...)
 
 ## Test Environment Requirements
 
-- Valid YAML files for configuration:
-  - Products: [products.yml](config/products.yml)
-  - Rules: [rules.yml](config/rules.yml)
-- Alternative YAML files for configuration tests
-- Invalid YAML files for error handling tests
-
-The system should allow configuration of the file paths, with the default location for these files being determined by the implementation.
+*   Access to the cashier system/application build under test.
+*   Ability to configure the system to use default and custom paths for YAML files.
+*   Valid YAML files for products and rules (e.g., `config/products.yml`, `config/rules.yml`).
+*   Sample invalid YAML files for testing error handling (`TC-CF-003`, `TC-CF-004`).
 
 ## Defect Management
 
-For any defects found during testing:
+Any deviations from expected results will be logged as defects using a standard tracking tool (e.g., Jira, Trello). Each defect report will include:
 
-1. Document the defect with:
-   - Test case ID
-   - Steps to reproduce
-   - Expected vs. actual results
-   - Screenshots/recordings if applicable
-   - Severity classification:
-     - **Critical**: Prevents core functionality from working
-     - **High**: Significant feature doesn't work correctly
-     - **Medium**: Feature works but has limitations
-     - **Low**: Minor issues that don't affect functionality
-2. Track defects until resolution
-3. Perform regression testing on fixed defects
+1.  Test Case ID (if applicable)
+2.  Clear, concise title
+3.  Build/Version number where defect was found
+4.  Detailed steps to reproduce
+5.  Expected Result vs. Actual Result
+6.  Screenshots/Logs (if applicable)
+7.  Severity (Critical, High, Medium, Low)
+8.  Priority (Blocker, High, Medium, Low)
+
+Defects will be tracked through their lifecycle (Open, In Progress, Ready for QA, Closed). Regression testing will be performed on fixed defects.
 
 ## Reporting
 
-At the conclusion of testing, a test summary report will be created documenting:
+A Test Summary Report will be generated at the end of the execution cycle, detailing:
 
-1. Test cases executed
-2. Pass/fail status for each test case
-3. Defects found and their status
-4. Overall assessment of system quality
-5. Recommendations for improvement
+1.  Scope of testing (which phases/test cases were executed).
+2.  Summary of results (Pass/Fail counts per priority/phase).
+3.  List of open defects with severity/priority.
+4.  Overall assessment of quality based on Success Criteria.
+5.  Any identified risks or recommendations.
 
-This report will provide stakeholders with a clear understanding of the system's quality and any remaining issues.
+This provides stakeholders with a clear view of the system's quality state.
