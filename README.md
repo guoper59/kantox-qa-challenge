@@ -7,7 +7,6 @@ This repository contains a solution for the Kantox QA Engineer Challenge with co
 ```
 .
 ├── README.md                           # This file: Main documentation, setup, assumptions
-├── defense.md                          # Document defending the QA strategy and decisions
 ├── part1-cashier-system/               # Cashier system tests
 │   ├── bdd-specifications/             # BDD specifications in Gherkin
 │   │   └── cashier.feature             # Cashier system scenarios
