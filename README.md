@@ -1,3 +1,31 @@
+# Kantox QA Engineer Challenge Solution
+
+This repository contains a solution for the Kantox QA Engineer Challenge with comprehensive test cases and API tests.
+
+## Repository Structure
+
+```
+.
+├── README.md                           # This file: Main documentation, setup, assumptions
+├── defense.md                          # Document defending the QA strategy and decisions
+├── part1-cashier-system/               # Cashier system tests
+│   ├── bdd-specifications/             # BDD specifications in Gherkin
+│   │   └── cashier.feature             # Cashier system scenarios
+│   ├── config/                            # Example configuration
+│   │   ├── products.yml                # Sample products
+│   │   └── rules.yml                   # Sample discount rules
+│   ├── test-cases.md                   # Detailed test cases with links & assumptions
+│   └── test-execution-plan.md          # Prioritized execution plan
+│
+└── part2-api-testing/                  # API tests
+    ├── bdd-specifications/             # BDD specifications in Gherkin
+    │   └── api.feature                 # API test scenarios
+    ├── collection.json                 # Postman collection with contract tests
+    ├── db.json                         # Working database file (overwritten on start)
+    ├── db.seed.json                    # Seed database file with initial state
+    └── package.json                    # Dependencies and start script for JSON server
+```
+
 ## Overall QA Strategy & Justifications
 
 Our approach follows industry best practices, emphasizing:
@@ -28,7 +56,7 @@ A [test execution plan](part1-cashier-system/test-execution-plan.md) prioritizes
 -   **Boundary Value Analysis (BVA):** Testing at and around discount thresholds (N-1, N, N+1).
 -   **Decision Table Thinking:** Ensuring combinations of products and quantities are covered.
 -   **State Transition Testing:** Used for cart operations (empty → add → update → remove).
--   **Gherkin (BDD Syntax):** Used to present test cases in a clear, business-readable format in `bdd-specifications/`.
+-   **Gherkin (BDD Syntax):** Used to present test cases in a clear, business-readable format in `part1-cashier-system/bdd-specifications/`.
 
 ### Key Assumptions (Parts 1 & 2)
 
@@ -39,7 +67,7 @@ The following assumptions were made during the design of the tests:
 3.  **Rounding Behavior (Part 1):** For the `FractionPriceRule`, percentage calculations yielding fractional currency values are rounded to 2 decimal places (nearest penny) **per individual item** *before* these rounded item prices are summed for the total. (e.g., £11.23 \* 2/3 = £7.4866... rounded to £7.49 per item).
 4.  **Input Validation (Part 1 & 2):** The systems perform basic input validation. For Part 1, this means rejecting negative quantities or attempts to add non-existent product codes. For Part 2, this relates to assumption #7.
 5.  **Product-Level Discounts (Part 1):** Discounts are calculated based on the quantity and rules applicable to individual product line items in the cart, not based on overall cart value or total number of items across different products.
-6.  **YAML Configuration (Part 1):** The system correctly parses YAML files structured similarly to the examples provided (`config/products.yml`, `config/rules.yml`) and can load them from default or specified paths.
+6.  **YAML Configuration (Part 1):** The system correctly parses YAML files structured similarly to the examples provided (`part1-cashier-system/config/`) and can load them from default or specified paths.
 7.  **API Contract Assumes Mandatory Fields (Part 2):** Our API tests assume standard API behavior where mandatory fields are enforced by the API provider. For example, the contract test `Create Post - Missing Required Field` assumes the `title` field is mandatory for `POST /posts` as per a realistic API contract. We acknowledge that the `json-server` mock used for this challenge *permissively accepts* requests missing this field (returning 201 Created). Our test correctly expects an error status (e.g., 400 Bad Request) based on the assumed contract. Therefore, the test **intentionally fails** when run against the current permissive mock to highlight this deviation (see note under "Running the API Tests"). The test script includes logic to clean up the incorrectly created data to avoid impacting subsequent tests. A production-grade API would be expected to return the appropriate error status code.
 
 ## Part 2: API Testing
@@ -89,15 +117,15 @@ Our API tests follow **contract testing principles**, ensuring that the API adhe
     cd part2-api-testing
     npm install
     # Create/edit db.seed.json if needed to define the desired initial state
-    npm start 
+    npm start
     ```
     The server will start at `http://localhost:3000` with a fresh copy of `db.seed.json` loaded into `db.json`.
 
 3.  **Troubleshooting JSON Server**
     If you get `"command not found: json-server"` error:
     -   Make sure you've run `npm install` successfully in the `part2-api-testing` directory.
-    -   Try using `npx`: `npx cp db.seed.json db.json && npx json-server --watch db.json --port 3000`
-    -   Install JSON Server globally if needed: `npm install -g json-server` (less preferred). Note: you might also need `npm install -g shx` if using the cross-platform copy command.
+    -   Try using `npx`: `npx cp db.seed.json db.json && npx json-server --watch db.json --port 3000` (use `copy` instead of `cp` on Windows Command Prompt).
+    -   Install JSON Server globally if needed: `npm install -g json-server` (less preferred). Note: you might also need `npm install -g shx` if using the cross-platform copy command mentioned in `package.json`.
 
 4.  **Import the Collection into Postman:**
     -   Open Postman.
@@ -130,7 +158,7 @@ Our API tests follow **contract testing principles**, ensuring that the API adhe
     -   The Runner window shows pass/fail status for each test within each request.
     -   Green indicates pass, Red indicates fail.
     -   Click on a request name to see details of the request, response, and specific assertion results in the bottom pane.
-    -   **NOTE:** Expect the `Negative Contract Tests` -> `Create Post - Missing Required Field` test to **FAIL**. This is *correct* behavior, as explained in Key Assumption #7. The mock server incorrectly returns 201 instead of an error, violating the assumed API contract. The test correctly identifies this violation. Thanks to the database reset, this failure will not affect other tests like `GET All Posts`.
+    -   **NOTE: EXPECTED FAILURE** - Expect the `Negative Contract Tests` -> `Create Post - Missing Required Field` test to **FAIL** (showing red in the runner). This is *correct* and *expected* behavior for this challenge setup, as explained in Key Assumption #7. The mock server (json-server) incorrectly returns `201 Created` instead of an error status (like 400) when a required field ('title') is missing, thus violating the assumed API contract. The test correctly identifies this violation. Thanks to the database reset mechanism (Step 2), this intentional failure will not affect other tests in the run.
 
 ## BDD Specifications
 
