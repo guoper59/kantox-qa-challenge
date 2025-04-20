@@ -1,4 +1,3 @@
-
 ## Overall QA Strategy & Justifications
 
 Our approach follows industry best practices, emphasizing:
@@ -41,7 +40,7 @@ The following assumptions were made during the design of the tests:
 4.  **Input Validation (Part 1 & 2):** The systems perform basic input validation. For Part 1, this means rejecting negative quantities or attempts to add non-existent product codes. For Part 2, this relates to assumption #7.
 5.  **Product-Level Discounts (Part 1):** Discounts are calculated based on the quantity and rules applicable to individual product line items in the cart, not based on overall cart value or total number of items across different products.
 6.  **YAML Configuration (Part 1):** The system correctly parses YAML files structured similarly to the examples provided (`config/products.yml`, `config/rules.yml`) and can load them from default or specified paths.
-7.  **API Contract Assumes Mandatory Fields (Part 2):** Our API tests assume standard API behavior where mandatory fields are enforced by the API provider. For example, the contract test `Create Post - Missing Required Field` assumes the `title` field is mandatory for `POST /posts` as per a realistic API contract. We acknowledge that the `json-server` mock used for this challenge *permissively accepts* requests missing this field (returning 201 Created). Our test correctly expects an error status (e.g., 400 Bad Request) based on the assumed contract. Therefore, the test **intentionally fails** when run against the current permissive mock to highlight this deviation. The test script includes logic to clean up the incorrectly created data to avoid impacting subsequent tests. A production-grade API would be expected to return the appropriate error status code.
+7.  **API Contract Assumes Mandatory Fields (Part 2):** Our API tests assume standard API behavior where mandatory fields are enforced by the API provider. For example, the contract test `Create Post - Missing Required Field` assumes the `title` field is mandatory for `POST /posts` as per a realistic API contract. We acknowledge that the `json-server` mock used for this challenge *permissively accepts* requests missing this field (returning 201 Created). Our test correctly expects an error status (e.g., 400 Bad Request) based on the assumed contract. Therefore, the test **intentionally fails** when run against the current permissive mock to highlight this deviation (see note under "Running the API Tests"). The test script includes logic to clean up the incorrectly created data to avoid impacting subsequent tests. A production-grade API would be expected to return the appropriate error status code.
 
 ## Part 2: API Testing
 
@@ -66,7 +65,7 @@ Our API tests follow **contract testing principles**, ensuring that the API adhe
 2.  **API Structure:** Assumed the API generally follows RESTful conventions (correct HTTP methods for operations, standard status codes).
 3.  **Error Handling:** Expected appropriate error codes for common issues (e.g., 404 for resources not found).
 4.  **Data Relationships:** Assumed a logical relationship where comments belong to posts (`postId` field).
-5.  **State Persistence:** Relied on `json-server`'s `--watch` mode for changes to persist during the test run, enabling state verification across requests (e.g., create -> get -> update -> delete). Restarting the server resets the state in `db.json`.
+5.  **Database Reset on Start:** The `npm start` script now automatically resets `db.json` from `db.seed.json` before each server start, ensuring a clean state for every test run.
 6.  **Mock Limitations:** As noted in Key Assumption #7, `json-server` does not enforce field requirements by default.
 
 ### Running the API Tests
@@ -89,15 +88,16 @@ Our API tests follow **contract testing principles**, ensuring that the API adhe
     ```bash
     cd part2-api-testing
     npm install
-    npm start
+    # Create/edit db.seed.json if needed to define the desired initial state
+    npm start 
     ```
-    The server will start at `http://localhost:3000`.
+    The server will start at `http://localhost:3000` with a fresh copy of `db.seed.json` loaded into `db.json`.
 
 3.  **Troubleshooting JSON Server**
     If you get `"command not found: json-server"` error:
     -   Make sure you've run `npm install` successfully in the `part2-api-testing` directory.
-    -   Try using `npx`: `npx json-server --watch db.json --port 3000`
-    -   Install JSON Server globally if needed: `npm install -g json-server` (less preferred).
+    -   Try using `npx`: `npx cp db.seed.json db.json && npx json-server --watch db.json --port 3000`
+    -   Install JSON Server globally if needed: `npm install -g json-server` (less preferred). Note: you might also need `npm install -g shx` if using the cross-platform copy command.
 
 4.  **Import the Collection into Postman:**
     -   Open Postman.
@@ -130,7 +130,7 @@ Our API tests follow **contract testing principles**, ensuring that the API adhe
     -   The Runner window shows pass/fail status for each test within each request.
     -   Green indicates pass, Red indicates fail.
     -   Click on a request name to see details of the request, response, and specific assertion results in the bottom pane.
-    -   Note the expected failure for `Create Post - Missing Required Field` due to Assumption #7.
+    -   **NOTE:** Expect the `Negative Contract Tests` -> `Create Post - Missing Required Field` test to **FAIL**. This is *correct* behavior, as explained in Key Assumption #7. The mock server incorrectly returns 201 instead of an error, violating the assumed API contract. The test correctly identifies this violation. Thanks to the database reset, this failure will not affect other tests like `GET All Posts`.
 
 ## BDD Specifications
 
@@ -147,5 +147,3 @@ These specifications provide clear, business-readable test scenarios that serve 
 -   **Behavior Focus:** Encourages thinking about system behavior from a user/stakeholder perspective.
 -   **Living Documentation Potential:** In a real project, these feature files could be directly linked to automation code using Cucumber, serving as executable specifications.
 -   **Communication Bridge:** Helps bridge the gap between technical implementation and business requirements.
-
---- END OF FILE README.md ---

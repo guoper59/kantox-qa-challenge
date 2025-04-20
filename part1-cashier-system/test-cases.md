@@ -94,5 +94,3 @@ These assumptions underpin the expected results defined in the test cases above.
 3.  **Discount Thresholds:** Rules trigger at the specified quantity (e.g., "Buy 3 or more" triggers at quantity 3).
 4.  **Input Validation:** The system is expected to validate basic inputs, rejecting negative quantities and unknown product codes.
 5.  **Configuration Structure:** The system correctly parses YAML configuration files matching the structure of the provided samples.
-
---- END OF FILE test-cases.md ---
