@@ -138,7 +138,7 @@ Our API tests follow **contract testing principles**, ensuring that the API adhe
     -   Click the "+" button to create a new environment.
     -   Name it "Kantox QA Challenge" (or similar).
     -   Add a variable:
-        -   **Variable:** `baseUrl`
+        -   **Variable:** `baseURL`
         -   **Type:** default
         -   **Initial Value:** `http://localhost:3000`
         -   **Current Value:** `http://localhost:3000`
