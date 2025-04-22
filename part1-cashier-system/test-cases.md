@@ -16,7 +16,7 @@ This document contains a comprehensive set of test cases designed to validate th
 4.  **Error Handling**: Test cases specifically check how the system responds to invalid inputs, non-existent product codes, and malformed configuration files.
 5.  **Real-world Scenarios**: The test cases simulate real shopping scenarios where multiple products and multiple discount rules might apply simultaneously.
 
-*(Note: API testing assumptions are detailed separately in the main [README.md](README.md) file)*
+*(Note: API testing assumptions are detailed separately in the main [README.md](../README.md) file)*
 
 ## 1. Product Management Tests
 
@@ -47,7 +47,7 @@ This document contains a comprehensive set of test cases designed to validate th
 | TC-DR-006 | Fraction Price Rule - Buy >= 3 Pay 2/3 (Coffee - threshold)  | Boundary Value        | 1. Add 2 Coffee (price £22.46)<br>2. Add 1 more (total 3)<br>3. View cart total          | With 3 units: £22.47 (3 × £11.23 × 2/3 = 3 * 7.4866.. rounded to 7.49 each = 22.47) | Critical |
 | TC-DR-007 | Fraction Price Rule - Above Threshold                        | Equivalence Partitioning | 1. Add 4 units of Coffee<br>2. View cart total                                          | Total price shows £29.96 (4 × £7.49)                                              | High     |
 | TC-DR-008 | Multiple Discount Rules Applied (Different Products)         | Decision Table        | 1. Add 2 GR1<br>2. Add 3 SR1<br>3. Add 3 CF1<br>4. View cart total                     | Total shows £39.08 (£3.11 + £13.50 + £22.47)                                      | Critical |
-| TC-DR-009 | Complex Combination triggering multiple rules                | Decision Table        | 1. Add 3 GR1<br>2. Add 4 SR1<br>3. Add 5 CF1<br>4. View cart total                     | Total shows £61.68 (£6.22 + £18.00 + £37.45 [5 * 7.49])                           | High     |
+| TC-DR-009 | Complex Combination triggering multiple rules                | Decision Table        | 1. Add 3 GR1<br>2. Add 4 SR1<br>3. Add 5 CF1<br>4. View cart total                     | Total shows **£61.67** (£6.22 + £18.00 + £37.45 [5 * 7.49])                           | High     |
 | TC-DR-010 | Add items incrementally to trigger a rule                    | State Transition      | 1. Add 2 Strawberries (£10.00)<br>2. Add 2 more Strawberries<br>3. View cart total        | Total shows £18.00 (rule triggered for all 4 items at £4.50 each)                 | Medium   |
 
 ## 3. Configuration Tests
@@ -85,7 +85,7 @@ This document contains a comprehensive set of test cases designed to validate th
 
 ## Key Assumptions for Cashier System Tests
 
-These assumptions underpin the expected results defined in the test cases above. See the main [README.md](README.md) for a comprehensive list including API testing assumptions.
+These assumptions underpin the expected results defined in the test cases above. See the main [README.md](../README.md) for a comprehensive list including API testing assumptions.
 
 1.  **Rule Interaction Logic:** If multiple discount rules could apply to a single product line, only the single most beneficial rule (lowest price for the customer) is applied.
 2.  **Rounding Behavior:** Fractional prices resulting from percentage discounts (`FractionPriceRule`) are rounded to the nearest £0.01 per item before summing line totals.
