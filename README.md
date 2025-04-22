@@ -32,7 +32,7 @@ Our approach follows industry best practices, emphasizing:
 -   **Risk-Based Testing:** Focusing tests on key functional areas (discount rule logic, API CRUD operations) and potential weaknesses (boundaries, rule interactions).
 -   **Requirements-Driven Design:** Ensuring all specified functionalities and endpoints are covered.
 -   **Structured Test Design Techniques:** Utilizing formal methods (EP, BVA, decision tables, state transitions) for systematic coverage.
--   **Clear Documentation & Justification:** Explaining the *why* behind the approach and assumptions (`defense.md`).
+-   **Clear Documentation & Justification:** Explaining the *why* behind the approach and assumptions 
 -   **Adherence to ISTQB Principles:** Applying standard terminology and concepts throughout the test documentation.
 
 ## Part 1: Cashier System Test Cases
